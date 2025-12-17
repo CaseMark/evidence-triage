@@ -53,14 +53,6 @@ npm run dev
 
 ## Usage
 
-### Demo Flow (60 seconds)
-
-1. **Create a Vault**: Click "Create Vault" and name it (e.g., "Smith v. Jones 2024")
-2. **Upload Evidence**: Drag and drop a mixed folder of PDFs, images, and emails
-3. **Watch Auto-Categorization**: See documents automatically classified and tagged
-4. **Filter by Type**: Click "Contract" in the sidebar to filter to contracts only
-5. **Search**: Type "breach" in the search box to find relevant documents ranked by relevance
-
 ### Supported File Types
 
 | Category | Extensions |
