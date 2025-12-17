@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Upload dropzone styles */
+.dropzone {
+  @apply border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors;
+}
+
+.dropzone:hover,
+.dropzone.active {
+  @apply border-blue-500 bg-blue-50;
+}
+
+.dropzone.active {
+  @apply border-blue-600 bg-blue-100;
+}
+
+/* Evidence card styles */
+.evidence-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-shadow hover:shadow-md;
+}
+
+.evidence-card-selected {
+  @apply ring-2 ring-blue-500;
+}
+
+/* Category badge styles */
+.category-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+/* Tag styles */
+.tag {
+  @apply inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+.tag-removable {
+  @apply pr-1;
+}
+
+/* Progress bar */
+.progress-bar {
+  @apply h-2 bg-gray-200 rounded-full overflow-hidden;
+}
+
+.progress-bar-fill {
+  @apply h-full bg-blue-500 transition-all duration-300;
+}
+
+/* Timeline styles */
+.timeline-item {
+  @apply relative pl-8 pb-8 border-l-2 border-gray-200 last:border-l-0 last:pb-0;
+}
+
+.timeline-dot {
+  @apply absolute left-0 top-0 w-4 h-4 -ml-2 rounded-full bg-blue-500 border-2 border-white;
+}
+
+/* Filter sidebar */
+.filter-section {
+  @apply border-b border-gray-200 py-4;
+}
+
+.filter-section:last-child {
+  @apply border-b-0;
+}
+
+/* View toggle */
+.view-toggle-btn {
+  @apply p-2 rounded-md transition-colors;
+}
+
+.view-toggle-btn.active {
+  @apply bg-blue-100 text-blue-700;
+}
+
+.view-toggle-btn:not(.active) {
+  @apply text-gray-500 hover:bg-gray-100;
+}
+
+/* Relevance score indicator */
+.relevance-indicator {
+  @apply h-1.5 rounded-full;
+}
+
+.relevance-high {
+  @apply bg-green-500;
+}
+
+.relevance-medium {
+  @apply bg-yellow-500;
+}
+
+.relevance-low {
+  @apply bg-red-500;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin h-5 w-5 border-2 border-gray-300 border-t-blue-500 rounded-full;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+.modal-content {
+  @apply bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto;
+}
+
+/* Toast notifications */
+.toast {
+  @apply fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-up;
+}
+
+.toast-success {
+  @apply bg-green-500 text-white;
+}
+
+.toast-error {
+  @apply bg-red-500 text-white;
+}
+
+.toast-info {
+  @apply bg-blue-500 text-white;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Gallery view */
+.gallery-grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* List view */
+.list-view {
+  @apply divide-y divide-gray-200;
+}
+
+/* Search highlight */
+.search-highlight {
+  @apply bg-yellow-200 px-0.5 rounded;
+}
