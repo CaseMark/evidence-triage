@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { vaultId } = await params;
     const body = await request.json();
-    const { query, topK = 20 } = body;
+    const { query, topK = 20, categories = [], tags = [] } = body;
 
     if (!query) {
       return NextResponse.json(
@@ -20,8 +20,19 @@ export async function POST(
     }
 
     // Get all evidence items first
-    const allEvidence = getAllEvidence(vaultId);
+    let allEvidence = getAllEvidence(vaultId);
     console.log(`Search: Found ${allEvidence.length} evidence items in vault ${vaultId}`);
+    
+    // Apply category and tag filters BEFORE search
+    if (categories.length > 0) {
+      allEvidence = allEvidence.filter(e => categories.includes(e.category));
+      console.log(`Search: Filtered to ${allEvidence.length} items by categories: ${categories.join(', ')}`);
+    }
+    
+    if (tags.length > 0) {
+      allEvidence = allEvidence.filter(e => e.tags.some(tag => tags.includes(tag)));
+      console.log(`Search: Filtered to ${allEvidence.length} items by tags: ${tags.join(', ')}`);
+    }
 
     // Search vault using semantic/hybrid search
     let searchResults = { chunks: [], sources: [] } as { chunks: Array<{ object_id: string; hybridScore: number; text: string }>; sources: Array<{ id: string; filename: string }> };

@@ -333,7 +333,12 @@ export default function EvidenceTriagePage() {
       const response = await fetch(`/api/vaults/${selectedVault}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery }),
+        body: JSON.stringify({ 
+          query: searchQuery,
+          // Pass current filters to search API
+          categories: filters.categories,
+          tags: filters.tags,
+        }),
       });
       
       const data = await response.json();
