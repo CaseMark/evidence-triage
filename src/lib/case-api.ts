@@ -174,6 +174,9 @@ export async function updateObjectMetadata(
 ): Promise<void> {
   const apiKey = getApiKey();
   
+  console.log(`[Metadata] Saving metadata to vault/${vaultId}/objects/${objectId}/metadata`);
+  console.log(`[Metadata] Data:`, JSON.stringify(metadata));
+  
   const response = await fetch(`${CASE_API_BASE}/vault/${vaultId}/objects/${objectId}/metadata`, {
     method: 'PATCH',
     headers: {
@@ -185,8 +188,10 @@ export async function updateObjectMetadata(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`Failed to update metadata: ${response.status} - ${errorText}`);
+    console.error(`[Metadata] Failed to update: ${response.status} - ${errorText}`);
     // Don't throw - metadata update is best-effort
+  } else {
+    console.log(`[Metadata] Successfully saved metadata for ${objectId}`);
   }
 }
 

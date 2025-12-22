@@ -154,6 +154,12 @@ export async function POST(
 async function syncEvidenceFromVault(vaultId: string): Promise<void> {
   try {
     const { objects } = await listVaultObjects(vaultId);
+    
+    // Debug: Log first object to see structure
+    if (objects.length > 0) {
+      console.log('[Sync] First vault object structure:', JSON.stringify(objects[0], null, 2));
+    }
+    
     const existingEvidence = getAllEvidence(vaultId);
     
     // Create a map of existing evidence by objectId for quick lookup
@@ -170,14 +176,18 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
       const existing = existingByObjectId.get(obj.id);
       
       // Extract classification from vault metadata (prefixed with et_)
-      // Note: extracted text is NOT stored in metadata - fetched on-demand via /objects/{id}/text
-      const hasClassification = !!obj.et_category;
+      // Note: metadata may be at top level OR nested in a metadata object depending on API response
+      // extracted text is NOT stored in metadata - fetched on-demand via /objects/{id}/text
+      const meta = obj.metadata || obj; // Try nested metadata first, fallback to top-level
+      const etCategory = (meta as Record<string, unknown>).et_category || obj.et_category;
+      const hasClassification = !!etCategory;
+      
       const classificationData = hasClassification ? {
-        category: (obj.et_category as EvidenceItem['category']) || 'other',
-        tags: obj.et_tags ? JSON.parse(obj.et_tags) : [],
-        summary: obj.et_summary || undefined,
-        dateDetected: obj.et_date_detected || undefined,
-        relevanceScore: obj.et_relevance_score || 0,
+        category: (etCategory as EvidenceItem['category']) || 'other',
+        tags: ((meta as Record<string, unknown>).et_tags || obj.et_tags) ? JSON.parse(String((meta as Record<string, unknown>).et_tags || obj.et_tags)) : [],
+        summary: ((meta as Record<string, unknown>).et_summary || obj.et_summary || undefined) as string | undefined,
+        dateDetected: ((meta as Record<string, unknown>).et_date_detected || obj.et_date_detected || undefined) as string | undefined,
+        relevanceScore: Number((meta as Record<string, unknown>).et_relevance_score || obj.et_relevance_score || 0),
         ingestionStatus: 'completed' as const,
       } : null;
       
