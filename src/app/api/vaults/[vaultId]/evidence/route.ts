@@ -16,7 +16,8 @@ import {
   filterEvidence,
   getAllTags,
   getCategoryCounts,
-  updateEvidence
+  updateEvidence,
+  deleteEvidence
 } from '@/lib/evidence-store';
 import { EvidenceItem, FilterState } from '@/lib/types';
 
