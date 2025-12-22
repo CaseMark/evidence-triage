@@ -62,20 +62,28 @@ export async function getVault(vaultId: string): Promise<{ id: string; name: str
   return apiRequest(`/vault/${vaultId}`, { method: 'GET' });
 }
 
-export async function listVaultObjects(vaultId: string): Promise<{ 
-  objects: Array<{ 
-    id: string; 
-    filename: string; 
-    contentType: string;
-    sizeBytes: number;
-    ingestionStatus: string; 
-    pageCount?: number; 
-    textLength?: number; 
-    chunkCount?: number;
-    metadata?: Record<string, unknown>;
-    createdAt: string;
-  }> 
-}> {
+export interface VaultObject {
+  id: string; 
+  filename: string; 
+  contentType: string;
+  sizeBytes: number;
+  ingestionStatus: string; 
+  pageCount?: number; 
+  textLength?: number; 
+  chunkCount?: number;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  // Evidence triage classification metadata (prefixed with et_)
+  // Note: extracted text is NOT stored in metadata - fetch on-demand via /objects/{id}/text
+  et_category?: string;
+  et_tags?: string;
+  et_summary?: string;
+  et_date_detected?: string;
+  et_relevance_score?: number;
+  et_classified_at?: string;
+}
+
+export async function listVaultObjects(vaultId: string): Promise<{ objects: VaultObject[] }> {
   return apiRequest(`/vault/${vaultId}/objects`, { method: 'GET' });
 }
 
@@ -156,6 +164,30 @@ export async function deleteVaultObject(
   objectId: string
 ): Promise<{ success: boolean; message: string }> {
   return apiRequest(`/vault/${vaultId}/objects/${objectId}`, { method: 'DELETE' });
+}
+
+// Update object metadata (used to persist classification data)
+export async function updateObjectMetadata(
+  vaultId: string,
+  objectId: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  const apiKey = getApiKey();
+  
+  const response = await fetch(`${CASE_API_BASE}/vault/${vaultId}/objects/${objectId}/metadata`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Failed to update metadata: ${response.status} - ${errorText}`);
+    // Don't throw - metadata update is best-effort
+  }
 }
 
 // Search operations

@@ -1,65 +1,9 @@
 import { EvidenceItem, EvidenceCategory, FilterState, UploadProgress } from './types';
-import * as fs from 'fs';
-import * as path from 'path';
 
-// File-based persistence for evidence metadata
-const DATA_DIR = path.join(process.cwd(), '.evidence-data');
-const EVIDENCE_FILE = path.join(DATA_DIR, 'evidence.json');
-
-// Ensure data directory exists
-function ensureDataDir(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-// Load evidence from file
-function loadEvidenceFromFile(): Map<string, Map<string, EvidenceItem>> {
-  try {
-    ensureDataDir();
-    if (fs.existsSync(EVIDENCE_FILE)) {
-      const data = fs.readFileSync(EVIDENCE_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      const store = new Map<string, Map<string, EvidenceItem>>();
-      
-      for (const [vaultId, items] of Object.entries(parsed)) {
-        const vaultMap = new Map<string, EvidenceItem>();
-        for (const [itemId, item] of Object.entries(items as Record<string, EvidenceItem>)) {
-          vaultMap.set(itemId, item as EvidenceItem);
-        }
-        store.set(vaultId, vaultMap);
-      }
-      
-      console.log(`[EvidenceStore] Loaded evidence from file`);
-      return store;
-    }
-  } catch (error) {
-    console.error('[EvidenceStore] Failed to load evidence from file:', error);
-  }
-  return new Map();
-}
-
-// Save evidence to file
-function saveEvidenceToFile(): void {
-  try {
-    ensureDataDir();
-    const data: Record<string, Record<string, EvidenceItem>> = {};
-    
-    for (const [vaultId, vaultMap] of evidenceStore.entries()) {
-      data[vaultId] = {};
-      for (const [itemId, item] of vaultMap.entries()) {
-        data[vaultId][itemId] = item;
-      }
-    }
-    
-    fs.writeFileSync(EVIDENCE_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('[EvidenceStore] Failed to save evidence to file:', error);
-  }
-}
-
-// In-memory store for evidence items - initialized from file
-const evidenceStore: Map<string, Map<string, EvidenceItem>> = loadEvidenceFromFile();
+// In-memory store for evidence items
+// Note: This is ephemeral in serverless environments. Classification data is
+// persisted to vault object metadata for durability across invocations.
+const evidenceStore: Map<string, Map<string, EvidenceItem>> = new Map();
 const uploadProgressStore: Map<string, UploadProgress[]> = new Map();
 
 // Get or create vault evidence store
@@ -74,7 +18,6 @@ function getVaultStore(vaultId: string): Map<string, EvidenceItem> {
 export function addEvidence(vaultId: string, evidence: EvidenceItem): void {
   const store = getVaultStore(vaultId);
   store.set(evidence.id, evidence);
-  saveEvidenceToFile();
 }
 
 export function getEvidence(vaultId: string, evidenceId: string): EvidenceItem | undefined {
@@ -88,7 +31,6 @@ export function updateEvidence(vaultId: string, evidenceId: string, updates: Par
   if (existing) {
     const updated = { ...existing, ...updates };
     store.set(evidenceId, updated);
-    saveEvidenceToFile();
     return updated;
   }
   return undefined;
@@ -96,11 +38,7 @@ export function updateEvidence(vaultId: string, evidenceId: string, updates: Par
 
 export function deleteEvidence(vaultId: string, evidenceId: string): boolean {
   const store = getVaultStore(vaultId);
-  const result = store.delete(evidenceId);
-  if (result) {
-    saveEvidenceToFile();
-  }
-  return result;
+  return store.delete(evidenceId);
 }
 
 export function getAllEvidence(vaultId: string): EvidenceItem[] {
@@ -257,7 +195,6 @@ export function addBulkEvidence(vaultId: string, items: EvidenceItem[]): void {
   items.forEach(item => {
     store.set(item.id, item);
   });
-  saveEvidenceToFile();
 }
 
 export function updateBulkTags(
@@ -275,7 +212,6 @@ export function updateBulkTags(
       store.set(id, { ...item, tags });
     }
   });
-  saveEvidenceToFile();
 }
 
 // Search with relevance ranking
@@ -314,5 +250,4 @@ export function searchEvidence(
 // Clear all evidence for a vault
 export function clearVaultEvidence(vaultId: string): void {
   evidenceStore.delete(vaultId);
-  saveEvidenceToFile();
 }

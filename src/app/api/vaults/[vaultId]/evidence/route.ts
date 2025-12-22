@@ -169,8 +169,20 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
     for (const obj of objects) {
       const existing = existingByObjectId.get(obj.id);
       
+      // Extract classification from vault metadata (prefixed with et_)
+      // Note: extracted text is NOT stored in metadata - fetched on-demand via /objects/{id}/text
+      const hasClassification = !!obj.et_category;
+      const classificationData = hasClassification ? {
+        category: (obj.et_category as EvidenceItem['category']) || 'other',
+        tags: obj.et_tags ? JSON.parse(obj.et_tags) : [],
+        summary: obj.et_summary || undefined,
+        dateDetected: obj.et_date_detected || undefined,
+        relevanceScore: obj.et_relevance_score || 0,
+        ingestionStatus: 'completed' as const,
+      } : null;
+      
       if (!existing) {
-        // New object, create evidence item with default category
+        // New object, create evidence item
         // Use objectId as the id for consistency across reloads
         const evidence: EvidenceItem = {
           id: obj.id, // Use objectId as id for consistency
@@ -178,18 +190,27 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
           filename: obj.filename,
           contentType: obj.contentType,
           sizeBytes: obj.sizeBytes,
-          category: 'other',
-          tags: [],
-          relevanceScore: 0,
-          ingestionStatus: obj.ingestionStatus as EvidenceItem['ingestionStatus'],
+          category: classificationData?.category || 'other',
+          tags: classificationData?.tags || [],
+          summary: classificationData?.summary,
+          dateDetected: classificationData?.dateDetected,
+          relevanceScore: classificationData?.relevanceScore || 0,
+          // extractedText is fetched on-demand when viewing document details
+          ingestionStatus: classificationData ? 'completed' : (obj.ingestionStatus as EvidenceItem['ingestionStatus']),
           createdAt: obj.createdAt,
         };
         addEvidence(vaultId, evidence);
-        console.log(`Added new evidence from vault: ${obj.filename} (${obj.id})`);
+        console.log(`Added evidence from vault: ${obj.filename} (${obj.id})${hasClassification ? ' with classification' : ''}`);
       } else {
-        // Update ingestion status if it changed - but DON'T overwrite 'completed' status
-        // This is important for images where vault shows 'extraction_failed' but we've already classified them
-        if (existing.ingestionStatus !== obj.ingestionStatus && existing.ingestionStatus !== 'completed') {
+        // Existing evidence - check if we should update from vault metadata
+        // If vault has classification data and our local copy doesn't, use vault data
+        const localHasClassification = existing.category !== 'other' || existing.tags.length > 0 || existing.summary;
+        
+        if (hasClassification && !localHasClassification) {
+          updateEvidence(vaultId, existing.id, classificationData!);
+          console.log(`Restored classification from vault metadata for ${obj.filename}`);
+        } else if (existing.ingestionStatus !== obj.ingestionStatus && existing.ingestionStatus !== 'completed') {
+          // Update ingestion status if it changed - but DON'T overwrite 'completed' status
           updateEvidence(vaultId, existing.id, {
             ingestionStatus: obj.ingestionStatus as EvidenceItem['ingestionStatus'],
           });

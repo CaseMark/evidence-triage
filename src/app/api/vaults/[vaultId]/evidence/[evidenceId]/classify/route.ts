@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObjectText, classifyEvidence, getObjectStatus, listVaultObjects, triggerIngestion, isImageFile, processOCR, getOCRStatus, getOCRText } from '@/lib/case-api';
+import { getObjectText, classifyEvidence, getObjectStatus, listVaultObjects, triggerIngestion, isImageFile, processOCR, getOCRStatus, getOCRText, updateObjectMetadata } from '@/lib/case-api';
 import { getEvidence, updateEvidence, addEvidence, getAllEvidence } from '@/lib/evidence-store';
 import { EvidenceItem } from '@/lib/types';
 
@@ -200,6 +200,23 @@ export async function POST(
       extractedText: text.substring(0, 5000), // Store first 5000 chars
       ingestionStatus: 'completed',
     });
+
+    // Save classification to vault object metadata for persistence across serverless invocations
+    // Note: We don't store extracted text in metadata - it can be fetched on-demand from vault
+    try {
+      await updateObjectMetadata(vaultId, evidence.objectId, {
+        et_category: classification.category,
+        et_tags: JSON.stringify(classification.suggestedTags),
+        et_summary: classification.summary,
+        et_date_detected: classification.dateDetected || '',
+        et_relevance_score: classification.relevanceScore,
+        et_classified_at: new Date().toISOString(),
+      });
+      console.log(`[Classify] Saved classification to vault metadata`);
+    } catch (metaError) {
+      console.error('[Classify] Failed to save to vault metadata:', metaError);
+      // Continue - in-memory update still works for this session
+    }
 
     console.log(`[Classify] Successfully classified ${evidence.filename} as ${classification.category}`);
 
