@@ -172,6 +172,17 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
       existingByObjectId.set(e.id, e);
     });
 
+    // Build set of vault object IDs for quick lookup
+    const vaultObjectIds = new Set(objects.map(obj => obj.id));
+    
+    // Remove evidence items that no longer exist in vault
+    for (const existing of existingEvidence) {
+      if (!vaultObjectIds.has(existing.objectId || existing.id)) {
+        deleteEvidence(vaultId, existing.id);
+        console.log(`[Sync] Removed evidence no longer in vault: ${existing.filename} (${existing.id})`);
+      }
+    }
+    
     for (const obj of objects) {
       const existing = existingByObjectId.get(obj.id);
       
@@ -210,7 +221,7 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
           createdAt: obj.createdAt,
         };
         addEvidence(vaultId, evidence);
-        console.log(`Added evidence from vault: ${obj.filename} (${obj.id})${hasClassification ? ' with classification' : ''}`);
+        console.log(`[Sync] Added evidence from vault: ${obj.filename} (${obj.id})${hasClassification ? ' with classification' : ''}`);
       } else {
         // Existing evidence - check if we should update from vault metadata
         // If vault has classification data and our local copy doesn't, use vault data
@@ -218,17 +229,17 @@ async function syncEvidenceFromVault(vaultId: string): Promise<void> {
         
         if (hasClassification && !localHasClassification) {
           updateEvidence(vaultId, existing.id, classificationData!);
-          console.log(`Restored classification from vault metadata for ${obj.filename}`);
+          console.log(`[Sync] Restored classification from vault metadata for ${obj.filename}`);
         } else if (existing.ingestionStatus !== obj.ingestionStatus && existing.ingestionStatus !== 'completed') {
           // Update ingestion status if it changed - but DON'T overwrite 'completed' status
           updateEvidence(vaultId, existing.id, {
             ingestionStatus: obj.ingestionStatus as EvidenceItem['ingestionStatus'],
           });
-          console.log(`Updated ingestion status for ${obj.filename}: ${existing.ingestionStatus} -> ${obj.ingestionStatus}`);
+          console.log(`[Sync] Updated ingestion status for ${obj.filename}: ${existing.ingestionStatus} -> ${obj.ingestionStatus}`);
         }
       }
     }
   } catch (error) {
-    console.error('Failed to sync evidence from vault:', error);
+    console.error('[Sync] Failed to sync evidence from vault:', error);
   }
 }
