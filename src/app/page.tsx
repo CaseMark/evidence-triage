@@ -244,8 +244,8 @@ export default function EvidenceTriagePage() {
     setIsClassifying(prev => new Set(prev).add(evidenceId));
     
     try {
-      // Poll for ingestion completion (max 120 seconds - 24 attempts × 5 seconds)
-      const maxAttempts = 24;
+      // Poll for ingestion completion (max 10 minutes - 120 attempts × 5 seconds)
+      const maxAttempts = 120;
       let attempts = 0;
       let ingestionComplete = false;
       let lastError = '';
@@ -270,6 +270,11 @@ export default function EvidenceTriagePage() {
             setEvidence(prev => prev.map(e => 
               e.id === evidenceId ? { ...e, ...data.evidence } : e
             ));
+            
+            // Also update viewingEvidence if user is viewing this document
+            setViewingEvidence(prev => 
+              prev && prev.id === evidenceId ? { ...prev, ...data.evidence } : prev
+            );
             
             setUploadProgress(prev => prev.map(p => 
               p.evidenceId === evidenceId ? { ...p, status: 'completed', progress: 100 } : p
@@ -535,6 +540,23 @@ export default function EvidenceTriagePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Retry Classification button - show if document is unclassified */}
+                  {viewingEvidence.category === 'other' && !viewingEvidence.summary && (
+                    <button
+                      onClick={() => {
+                        classifyEvidence(viewingEvidence.id);
+                      }}
+                      disabled={isClassifying.has(viewingEvidence.id)}
+                      className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isClassifying.has(viewingEvidence.id) ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      {isClassifying.has(viewingEvidence.id) ? 'Classifying...' : 'Retry Classification'}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDeleteEvidence(viewingEvidence.id)}
                     disabled={deletingEvidence.has(viewingEvidence.id)}
