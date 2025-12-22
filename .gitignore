@@ -38,4 +38,7 @@ next-env.d.ts
 # Evidence data (local persistence)
 .evidence-data/
 
+# Debug scripts
+scripts/
+
 samples/
