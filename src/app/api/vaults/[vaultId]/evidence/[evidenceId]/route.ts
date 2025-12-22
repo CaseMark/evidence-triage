@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteVaultObject, listVaultObjects, getObjectStatus, isImageFile } from '@/lib/case-api';
-import { getEvidence, deleteEvidence, getAllEvidence, addEvidence } from '@/lib/evidence-store';
+import { deleteVaultObject, listVaultObjects, getObjectStatus, isImageFile, getObjectText, classifyEvidence as classifyWithLLM, updateObjectMetadata } from '@/lib/case-api';
+import { getEvidence, deleteEvidence, getAllEvidence, addEvidence, updateEvidence } from '@/lib/evidence-store';
 import { EvidenceItem } from '@/lib/types';
 
 // Helper function to sync evidence from vault (ensures in-memory store is populated)
@@ -116,6 +116,79 @@ export async function DELETE(
   }
 }
 
+// Helper to classify a document that's ingested but not yet classified
+async function classifyIfNeeded(vaultId: string, evidence: EvidenceItem): Promise<EvidenceItem> {
+  // Check if document needs classification
+  const needsClassification = evidence.category === 'other' && !evidence.summary && !evidence.tags?.length;
+  
+  if (!needsClassification) {
+    return evidence;
+  }
+  
+  // Check if ingestion is complete
+  try {
+    const status = await getObjectStatus(vaultId, evidence.objectId);
+    
+    if (status.ingestionStatus !== 'completed') {
+      console.log(`[AutoClassify] Document ${evidence.filename} still processing, skipping`);
+      return evidence;
+    }
+    
+    console.log(`[AutoClassify] Starting auto-classification for ${evidence.filename}`);
+    
+    // Get extracted text
+    let text = '';
+    try {
+      const textResult = await getObjectText(vaultId, evidence.objectId);
+      text = textResult.text;
+      console.log(`[AutoClassify] Got ${text.length} characters of text`);
+    } catch (error) {
+      console.error('[AutoClassify] Failed to get text:', error);
+      return evidence;
+    }
+    
+    // Classify with LLM
+    const classification = await classifyWithLLM(
+      text || evidence.filename,
+      evidence.filename,
+      evidence.contentType
+    );
+    console.log(`[AutoClassify] Classification result: category=${classification.category}`);
+    
+    // Update local evidence
+    const updated = updateEvidence(vaultId, evidence.id, {
+      category: classification.category,
+      tags: classification.suggestedTags,
+      summary: classification.summary,
+      dateDetected: classification.dateDetected,
+      relevanceScore: classification.relevanceScore,
+      ingestionStatus: 'completed',
+    });
+    
+    // Save to vault metadata
+    try {
+      await updateObjectMetadata(vaultId, evidence.objectId, {
+        et_category: classification.category,
+        et_tags: JSON.stringify(classification.suggestedTags),
+        et_summary: classification.summary,
+        et_date_detected: classification.dateDetected || '',
+        et_relevance_score: classification.relevanceScore,
+        et_classified_at: new Date().toISOString(),
+      });
+      console.log(`[AutoClassify] Saved classification to vault metadata`);
+    } catch (metaError) {
+      console.error('[AutoClassify] Failed to save to vault metadata:', metaError);
+    }
+    
+    console.log(`[AutoClassify] Successfully classified ${evidence.filename} as ${classification.category}`);
+    return updated || evidence;
+    
+  } catch (error) {
+    console.error('[AutoClassify] Failed to auto-classify:', error);
+    return evidence;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ vaultId: string; evidenceId: string }> }
@@ -138,6 +211,9 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Auto-classify if document is ingested but not yet classified
+    evidence = await classifyIfNeeded(vaultId, evidence);
 
     // For images, get the download URL
     let downloadUrl: string | undefined;

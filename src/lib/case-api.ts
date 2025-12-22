@@ -167,6 +167,7 @@ export async function deleteVaultObject(
 }
 
 // Update object metadata (used to persist classification data)
+// Uses PATCH /vault/{vaultId}/objects/{objectId} with { metadata: {...} } in body
 export async function updateObjectMetadata(
   vaultId: string,
   objectId: string,
@@ -174,19 +175,24 @@ export async function updateObjectMetadata(
 ): Promise<void> {
   const apiKey = getApiKey();
   
-  const response = await fetch(`${CASE_API_BASE}/vault/${vaultId}/objects/${objectId}/metadata`, {
+  console.log(`[Metadata] Saving metadata to vault/${vaultId}/objects/${objectId}`);
+  console.log(`[Metadata] Data:`, JSON.stringify(metadata));
+  
+  const response = await fetch(`${CASE_API_BASE}/vault/${vaultId}/objects/${objectId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(metadata),
+    body: JSON.stringify({ metadata }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`Failed to update metadata: ${response.status} - ${errorText}`);
+    console.error(`[Metadata] Failed to update: ${response.status} - ${errorText}`);
     // Don't throw - metadata update is best-effort
+  } else {
+    console.log(`[Metadata] Successfully saved metadata for ${objectId}`);
   }
 }
 

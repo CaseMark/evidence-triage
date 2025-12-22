@@ -244,18 +244,21 @@ export default function EvidenceTriagePage() {
     setIsClassifying(prev => new Set(prev).add(evidenceId));
     
     try {
-      // Poll for ingestion completion (max 120 seconds - 24 attempts × 5 seconds)
-      const maxAttempts = 24;
+      // Poll for ingestion completion (max 60 minutes - 720 attempts × 5 seconds)
+      const maxAttempts = 720;
       let attempts = 0;
       let ingestionComplete = false;
+      let fileDeleted = false;
       let lastError = '';
       
-      while (attempts < maxAttempts && !ingestionComplete) {
+      while (attempts < maxAttempts && !ingestionComplete && !fileDeleted) {
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 5000));
         
+        // Progress: slowly increase from 50% to 95% over 60 minutes
+        const progressPercent = Math.min(95, 50 + Math.floor((attempts / maxAttempts) * 45));
         setUploadProgress(prev => prev.map(p => 
-          p.evidenceId === evidenceId ? { ...p, status: 'processing', progress: Math.min(90, 50 + (attempts * 2)) } : p
+          p.evidenceId === evidenceId ? { ...p, status: 'processing', progress: progressPercent } : p
         ));
         
         try {
@@ -271,6 +274,11 @@ export default function EvidenceTriagePage() {
               e.id === evidenceId ? { ...e, ...data.evidence } : e
             ));
             
+            // Also update viewingEvidence if user is viewing this document
+            setViewingEvidence(prev => 
+              prev && prev.id === evidenceId ? { ...prev, ...data.evidence } : prev
+            );
+            
             setUploadProgress(prev => prev.map(p => 
               p.evidenceId === evidenceId ? { ...p, status: 'completed', progress: 100 } : p
             ));
@@ -278,10 +286,22 @@ export default function EvidenceTriagePage() {
             
             // Reload to get updated category counts
             loadEvidence();
+          } else if (response.status === 404) {
+            // File was deleted from vault - remove from UI
+            console.log(`File ${evidenceId} no longer exists in vault, removing from UI`);
+            fileDeleted = true;
+            setEvidence(prev => prev.filter(e => e.id !== evidenceId));
+            setUploadProgress(prev => prev.filter(p => p.evidenceId !== evidenceId));
+            // Close viewer if viewing this file
+            setViewingEvidence(prev => prev && prev.id === evidenceId ? null : prev);
+            loadEvidence();
           } else if (response.status === 400) {
             const errorData = await response.json();
             lastError = errorData.status || 'processing';
-            console.log(`Ingestion status: ${lastError}, attempt ${attempts}/${maxAttempts}`);
+            // Log progress every 12 attempts (1 minute)
+            if (attempts % 12 === 0) {
+              console.log(`Ingestion status: ${lastError}, attempt ${attempts}/${maxAttempts} (${Math.floor(attempts * 5 / 60)} min)`);
+            }
           } else {
             const errorData = await response.json().catch(() => ({}));
             lastError = errorData.error || `HTTP ${response.status}`;
@@ -293,16 +313,21 @@ export default function EvidenceTriagePage() {
         }
       }
       
-      if (!ingestionComplete) {
+      if (!ingestionComplete && !fileDeleted) {
+        // Timeout after 60 minutes - show error state
         setUploadProgress(prev => prev.map(p => 
           p.evidenceId === evidenceId ? { 
             ...p, 
-            status: 'completed', 
+            status: 'failed', 
             progress: 100,
-            error: `Processing in background`
+            error: `Processing timed out after 60 minutes. The file may be stuck - try deleting and re-uploading.`
           } : p
         ));
-        console.log('Ingestion timed out, will complete in background. Last status:', lastError);
+        // Update evidence item to show error status
+        setEvidence(prev => prev.map(e => 
+          e.id === evidenceId ? { ...e, ingestionStatus: 'failed' as const } : e
+        ));
+        console.log('Ingestion timed out after 60 minutes. Last status:', lastError);
         loadEvidence();
       }
       
@@ -535,6 +560,23 @@ export default function EvidenceTriagePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Retry Classification button - show if document is unclassified */}
+                  {viewingEvidence.category === 'other' && !viewingEvidence.summary && (
+                    <button
+                      onClick={() => {
+                        classifyEvidence(viewingEvidence.id);
+                      }}
+                      disabled={isClassifying.has(viewingEvidence.id)}
+                      className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isClassifying.has(viewingEvidence.id) ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      {isClassifying.has(viewingEvidence.id) ? 'Classifying...' : 'Retry Classification'}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDeleteEvidence(viewingEvidence.id)}
                     disabled={deletingEvidence.has(viewingEvidence.id)}
