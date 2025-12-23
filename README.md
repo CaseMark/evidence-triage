@@ -38,10 +38,10 @@ cd evidence-triage
 npm install
 ```
 
-3. Create a `.env.local` file with your Case.dev API key:
+3. Set the `CASEDEV_API_KEY` environment variable with your Case.dev API key:
 ```bash
-cp .env.example .env.local
-# Edit .env.local and add your API key
+# Create .env.local for local development
+echo "CASEDEV_API_KEY=your_api_key_here" > .env.local
 ```
 
 4. Start the development server:
@@ -100,6 +100,25 @@ npm run dev
 - **Vaults**: Document storage with semantic search
 - **OCR**: Text extraction from PDFs and images (including handwriting)
 - **LLMs**: Document classification and relevance scoring
+
+## Security Note
+
+This application is designed for local development and trusted deployment environments. The API routes do not implement user authentication—instead, access control is managed through:
+
+- The `CASEDEV_API_KEY` environment variable (server-side only, never exposed to the browser)
+- Your Case.dev account permissions
+
+For production deployments with multiple users, you should add an authentication layer (e.g., Clerk, NextAuth, or similar).
+
+## Credit Usage
+
+This application consumes Case.dev API credits:
+
+- **Document Classification**: Each document uses LLM credits for AI-powered categorization and relevance scoring
+- **OCR Processing**: Images and scanned PDFs consume OCR credits for text extraction
+- **Semantic Search**: Search queries use embedding and vector search credits
+
+Bulk uploads will consume credits proportionally to the number of documents. Monitor your usage at [console.case.dev](https://console.case.dev).
 
 ## Future Enhancements
 
