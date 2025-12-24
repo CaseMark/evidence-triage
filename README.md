@@ -2,6 +2,8 @@
 
 A powerful evidence management tool for litigation teams. Bulk upload evidence, auto-categorize by type, OCR handwritten notes, tag and search across large evidence collections.
 
+Live demo: https://evidence-triage-proj-ztn618t.casedev.me
+
 ## Features
 
 - **Bulk Upload with Progress Tracking**: Drag and drop multiple files at once with real-time progress indicators
@@ -131,4 +133,4 @@ Bulk uploads will consume credits proportionally to the number of documents. Mon
 
 ## License
 
-MIT
+Apache 2.0
